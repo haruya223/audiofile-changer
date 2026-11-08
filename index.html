@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音楽フォーマット / 拡張子変換ツール</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f3ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts Inter & Noto Sans JP -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+
+  <!-- External Libraries for MP3 & Zip export -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Waveform canvas selection overlay */
+    .waveform-overlay {
+      background: rgba(99, 102, 241, 0.2);
+      border-left: 2px solid #818cf8;
+      border-right: 2px solid #818cf8;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid font-bold fa-music text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
+            音楽拡張子変換 Studio
+            <span class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium px-2 py-0.5 rounded-full">v2.0 WebAudio</span>
+          </h1>
+          <p class="text-xs text-slate-400">ブラウザ内ローカル完全変換 • サーバー送信なしで安全</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-xs text-emerald-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          100% クライアントサイド動作
+        </div>
+        <button id="resetAllBtn" class="px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition border border-slate-700/60 flex items-center gap-1.5">
+          <i class="fa-solid fa-rotate-left"></i> リセット
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Feature Highlights -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+          <i class="fa-solid fa-shield-halved text-base"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400">プライバシー保護</p>
+          <p class="text-xs font-semibold text-slate-200">ファイル未送信で安全</p>
+        </div>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-lg">
+          <i class="fa-solid fa-bolt text-base"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400">超高速ローカル処理</p>
+          <p class="text-xs font-semibold text-slate-200">WebAudio API 駆動</p>
+        </div>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-lg">
+          <i class="fa-solid fa-sliders text-base"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400">自由度の高いカスタマイズ</p>
+          <p class="text-xs font-semibold text-slate-200">音質・範囲カット対応</p>
+        </div>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center gap-3">
+        <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
+          <i class="fa-solid fa-file-zipper text-base"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400">一括バッチ処理</p>
+          <p class="text-xs font-semibold text-slate-200">ZIPまとめて保存</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: File Upload Drop Zone -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-xs">1</span>
+          <h2 class="font-bold text-base text-slate-100">音楽ファイルを追加</h2>
+        </div>
+        <span class="text-xs text-slate-400">対応形式: MP3, WAV, OGG, AAC, M4A, FLAC, WEBM, OPUS 他</span>
+      </div>
+
+      <!-- Dropzone -->
+      <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/50 hover:bg-indigo-950/20 rounded-xl p-8 text-center transition cursor-pointer group relative overflow-hidden">
+        <input type="file" id="fileInput" multiple accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm,.opus,.wma" class="hidden">
+        <div class="space-y-3 pointer-events-none">
+          <div class="w-14 h-14 mx-auto rounded-full bg-slate-800 group-hover:bg-indigo-600/20 group-hover:text-indigo-400 text-slate-400 flex items-center justify-center transition">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl group-hover:scale-110 transition-transform"></i>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-slate-200">
+              ここに音楽ファイルをドラッグ＆ドロップ
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+              または <span class="text-indigo-400 underline font-semibold">ファイルを選択</span>（複数選択可能）
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Global Conversion Settings & Trimming Grid -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Step 2: Conversion Settings -->
+      <div class="lg:col-span-1 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-xs">2</span>
+            <h2 class="font-bold text-base text-slate-100">一括変換パラメーター</h2>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Target Format -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              出力フォーマット (拡張子)
+            </label>
+            <div class="grid grid-cols-3 gap-2" id="formatSelector">
+              <button data-format="mp3" class="format-btn active px-3 py-2 text-xs font-semibold rounded-lg border border-indigo-500 bg-indigo-600/20 text-indigo-300 text-center transition">
+                .MP3
+              </button>
+              <button data-format="wav" class="format-btn px-3 py-2 text-xs font-semibold rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600 text-center transition">
+                .WAV
+              </button>
+              <button data-format="ogg" class="format-btn px-3 py-2 text-xs font-semibold rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600 text-center transition">
+                .OGG
+              </button>
+              <button data-format="m4a" class="format-btn px-3 py-2 text-xs font-semibold rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600 text-center transition">
+                .M4A / AAC
+              </button>
+              <button data-format="webm" class="format-btn px-3 py-2 text-xs font-semibold rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600 text-center transition">
+                .WEBM
+              </button>
+              <button data-format="flac" class="format-btn px-3 py-2 text-xs font-semibold rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600 text-center transition">
+                .FLAC
+              </button>
+            </div>
+          </div>
+
+          <!-- Bitrate Selector (Enabled for lossy formats) -->
+          <div id="bitrateContainer">
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex justify-between">
+              <span>ビットレート (品質)</span>
+              <span id="bitrateVal" class="text-indigo-400">192 kbps</span>
+            </label>
+            <select id="bitrateSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="128">128 kbps (標準・軽量)</option>
+              <option value="192" selected>192 kbps (推奨・高音質)</option>
+              <option value="256">256 kbps (超高音質)</option>
+              <option value="320">320 kbps (最高音質)</option>
+            </select>
+          </div>
+
+          <!-- Sample Rate -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              サンプルレート (周波数)
+            </label>
+            <select id="sampleRateSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="0">元のソースと同じ (推奨)</option>
+              <option value="44100">44.1 kHz (CD標準)</option>
+              <option value="48000">48.0 kHz (動画・プロ仕様)</option>
+              <option value="22050">22.05 kHz (低容量)</option>
+              <option value="16000">16.0 kHz (音声記録用)</option>
+            </select>
+          </div>
+
+          <!-- Channels Mode -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              チャンネルモード
+            </label>
+            <select id="channelsSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="0">元のソースと同じ</option>
+              <option value="2">2ch ステレオ (Stereo)</option>
+              <option value="1">1ch モノラル (Mono)</option>
+            </select>
+          </div>
+
+          <!-- Audio Gain / Volume Slider -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-semibold text-slate-300">音量調整 (ゲイン)</label>
+              <span id="gainValText" class="text-xs font-mono text-indigo-400">100% (変更なし)</span>
+            </div>
+            <input type="range" id="gainSlider" min="50" max="200" value="100" step="5" class="w-full accent-indigo-500 bg-slate-950 rounded-lg cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+              <span>50%</span>
+              <span>100%</span>
+              <span>200%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Queue & Interactive Waveform Trimmer Area -->
+      <div class="lg:col-span-2 space-y-6">
+
+        <!-- Active Trimmer & Waveform Preview Card -->
+        <div id="trimmerCard" class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl hidden">
+          <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-scissors text-indigo-400 text-sm"></i>
+              <h3 class="font-bold text-sm text-slate-100 truncate max-w-xs sm:max-w-md" id="trimmerFileName">選択中のトラック名</h3>
+            </div>
+            <button id="closeTrimmerBtn" class="text-slate-400 hover:text-white text-xs px-2 py-1 bg-slate-800 rounded">
+              <i class="fa-solid fa-xmark"></i> 閉じる
+            </button>
+          </div>
+
+          <!-- Waveform Canvas -->
+          <div class="relative bg-slate-950 rounded-xl p-2 border border-slate-800 mb-3 overflow-hidden">
+            <canvas id="waveformCanvas" class="w-full h-24 block cursor-pointer"></canvas>
+            <div id="waveformOverlay" class="absolute top-0 bottom-0 waveform-overlay pointer-events-none"></div>
+          </div>
+
+          <!-- Playback controls & Trim timestamps -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center text-xs">
+            <!-- Audio Player Buttons -->
+            <div class="flex items-center space-x-2 justify-center sm:justify-start">
+              <button id="playTrimBtn" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-play"></i> <span>試聴</span>
+              </button>
+              <button id="stopTrimBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+                <i class="fa-solid fa-square"></i>
+              </button>
+              <span id="previewTimeText" class="font-mono text-slate-400 text-[11px]">00:00 / 00:00</span>
+            </div>
+
+            <!-- Start Time Input -->
+            <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-lg border border-slate-800 justify-center">
+              <span class="text-slate-400 text-[11px]">開始:</span>
+              <input type="number" id="trimStartInput" step="0.1" min="0" value="0" class="w-16 bg-slate-900 text-center font-mono text-indigo-300 border border-slate-700 rounded px-1 py-0.5 text-xs">
+              <span class="text-slate-500 text-[10px]">秒</span>
+            </div>
+
+            <!-- End Time Input -->
+            <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-lg border border-slate-800 justify-center">
+              <span class="text-slate-400 text-[11px]">終了:</span>
+              <input type="number" id="trimEndInput" step="0.1" min="0" value="0" class="w-16 bg-slate-900 text-center font-mono text-indigo-300 border border-slate-700 rounded px-1 py-0.5 text-xs">
+              <span class="text-slate-500 text-[10px]">秒</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Files Queue & Processing List -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-xs">3</span>
+              <h2 class="font-bold text-base text-slate-100">変換キュー (<span id="queueCount">0</span>件)</h2>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="convertAllBtn" disabled class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-2">
+                <i class="fa-solid fa-play"></i>
+                一括変換を開始
+              </button>
+              <button id="downloadZipBtn" disabled class="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-zipper"></i>
+                ZIP一括保存
+              </button>
+            </div>
+          </div>
+
+          <!-- Queue List Items -->
+          <div id="fileQueueList" class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+            <!-- Empty State -->
+            <div id="emptyQueueState" class="py-12 text-center text-slate-500 space-y-2">
+              <i class="fa-solid fa-music text-3xl text-slate-700"></i>
+              <p class="text-xs">ファイルが読み込まれていません。上のエリアから選択してください。</p>
+            </div>
+          </div>
+
+          <!-- Total Summary Bar -->
+          <div id="summaryBar" class="hidden pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+            <div>
+              合計元サイズ: <span id="totalOriginalSize" class="text-slate-200 font-mono">0 MB</span>
+              → 変換後: <span id="totalConvertedSize" class="text-emerald-400 font-mono">0 MB</span>
+            </div>
+            <div id="totalRatioText" class="text-indigo-400 font-semibold">
+              節約率: --%
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-700 text-slate-100 text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2">
+    <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400"></i>
+    <span id="toastMsg">メッセージ</span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-4 mt-8">
+    <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-xs">
+      音楽フォーマット/拡張子変換 Studio &copy; Client-side Audio Converter. All processing happens locally in browser.
+    </div>
+  </footer>
+
+  <!-- Main JavaScript App Logic -->
+  <script>
+    // State Management
+    const state = {
+      files: [], // Array of file item objects
+      selectedFormat: 'mp3',
+      bitrate: 192,
+      sampleRate: 0,
+      channels: 0,
+      gain: 1.0,
+      activeTrimIndex: null,
+      audioCtx: null,
+      previewAudio: null,
+      previewBuffer: null,
+      previewSource: null,
+      isPlayingPreview: false,
+      previewStartTime: 0
+    };
+
+    // DOM Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileQueueList = document.getElementById('fileQueueList');
+    const emptyQueueState = document.getElementById('emptyQueueState');
+    const queueCount = document.getElementById('queueCount');
+    const convertAllBtn = document.getElementById('convertAllBtn');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const resetAllBtn = document.getElementById('resetAllBtn');
+    const summaryBar = document.getElementById('summaryBar');
+    const totalOriginalSizeEl = document.getElementById('totalOriginalSize');
+    const totalConvertedSizeEl = document.getElementById('totalConvertedSize');
+    const totalRatioText = document.getElementById('totalRatioText');
+
+    // Settings DOM
+    const formatSelector = document.getElementById('formatSelector');
+    const bitrateSelect = document.getElementById('bitrateSelect');
+    const bitrateContainer = document.getElementById('bitrateContainer');
+    const bitrateVal = document.getElementById('bitrateVal');
+    const sampleRateSelect = document.getElementById('sampleRateSelect');
+    const channelsSelect = document.getElementById('channelsSelect');
+    const gainSlider = document.getElementById('gainSlider');
+    const gainValText = document.getElementById('gainValText');
+
+    // Trimmer DOM
+    const trimmerCard = document.getElementById('trimmerCard');
+    const trimmerFileName = document.getElementById('trimmerFileName');
+    const closeTrimmerBtn = document.getElementById('closeTrimmerBtn');
+    const waveformCanvas = document.getElementById('waveformCanvas');
+    const waveformOverlay = document.getElementById('waveformOverlay');
+    const trimStartInput = document.getElementById('trimStartInput');
+    const trimEndInput = document.getElementById('trimEndInput');
+    const playTrimBtn = document.getElementById('playTrimBtn');
+    const stopTrimBtn = document.getElementById('stopTrimBtn');
+    const previewTimeText = document.getElementById('previewTimeText');
+
+    // Toast
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+    const toastIcon = document.getElementById('toastIcon');
+
+    // Helpers
+    function showToast(message, type = 'info') {
+      toastMsg.textContent = message;
+      if (type === 'success') {
+        toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+      } else if (type === 'error') {
+        toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+      } else {
+        toastIcon.className = 'fa-solid fa-circle-info text-indigo-400';
+      }
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+
+    function formatBytes(bytes, decimals = 2) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return '00:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 10);
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms}`;
+    }
+
+    // Audio Context Helper
+    function getAudioContext() {
+      if (!state.audioCtx) {
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (state.audioCtx.state === 'suspended') {
+        state.audioCtx.resume();
+      }
+      return state.audioCtx;
+    }
+
+    // Initialize Event Listeners
+    function initEvents() {
+      // Drag & Drop
+      dropZone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', handleFileSelect);
+
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-950/30');
+      });
+
+      dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/30');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/30');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          addFiles(Array.from(e.dataTransfer.files));
+        }
+      });
+
+      // Format selection buttons
+      formatSelector.querySelectorAll('.format-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          formatSelector.querySelectorAll('.format-btn').forEach(b => {
+            b.classList.remove('border-indigo-500', 'bg-indigo-600/20', 'text-indigo-300');
+            b.classList.add('border-slate-700', 'bg-slate-800', 'text-slate-300');
+          });
+          btn.classList.remove('border-slate-700', 'bg-slate-800', 'text-slate-300');
+          btn.classList.add('border-indigo-500', 'bg-indigo-600/20', 'text-indigo-300');
+
+          state.selectedFormat = btn.dataset.format;
+          
+          // Toggle Bitrate visibility (Relevant for MP3, AAC/M4A, OGG)
+          if (['wav', 'flac'].includes(state.selectedFormat)) {
+            bitrateContainer.classList.add('opacity-50', 'pointer-events-none');
+          } else {
+            bitrateContainer.classList.remove('opacity-50', 'pointer-events-none');
+          }
+        });
+      });
+
+      // Bitrate & Controls
+      bitrateSelect.addEventListener('change', (e) => {
+        state.bitrate = parseInt(e.target.value);
+        bitrateVal.textContent = `${state.bitrate} kbps`;
+      });
+
+      sampleRateSelect.addEventListener('change', (e) => {
+        state.sampleRate = parseInt(e.target.value);
+      });
+
+      channelsSelect.addEventListener('change', (e) => {
+        state.channels = parseInt(e.target.value);
+      });
+
+      gainSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        state.gain = val / 100;
+        gainValText.textContent = `${val}% ${val === 100 ? '(変更なし)' : ''}`;
+      });
+
+      // Buttons
+      convertAllBtn.addEventListener('click', processBatchConversion);
+      downloadZipBtn.addEventListener('click', downloadAllAsZip);
+      resetAllBtn.addEventListener('click', resetAll);
+
+      // Trimmer Inputs
+      closeTrimmerBtn.addEventListener('click', hideTrimmer);
+      trimStartInput.addEventListener('change', updateTrimFromInputs);
+      trimEndInput.addEventListener('change', updateTrimFromInputs);
+      playTrimBtn.addEventListener('click', togglePreviewPlay);
+      stopTrimBtn.addEventListener('click', stopPreviewPlay);
+    }
+
+    // Add Files to State Queue
+    async function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        addFiles(Array.from(e.target.files));
+        fileInput.value = '';
+      }
+    }
+
+    async function addFiles(filesArray) {
+      const audioFiles = filesArray.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|webm|opus|wma)$/i.test(f.name));
+      if (audioFiles.length === 0) {
+        showToast('サポートされている音声ファイルを選択してください', 'error');
+        return;
+      }
+
+      showToast(`${audioFiles.length} 個のファイルを追加中...`);
+
+      for (const file of audioFiles) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const fileObj = {
+          id: Math.random().toString(36).substring(2, 9),
+          file: file,
+          name: file.name,
+          originalSize: file.size,
+          originalExt: ext,
+          duration: 0,
+          sampleRate: null,
+          channels: null,
+          audioBuffer: null,
+          trimStart: 0,
+          trimEnd: 0,
+          status: 'pending', // 'pending', 'processing', 'completed', 'error'
+          progress: 0,
+          convertedBlob: null,
+          convertedName: '',
+          convertedSize: 0,
+          errorMsg: ''
+        };
+
+        state.files.push(fileObj);
+        renderQueueItem(fileObj);
+
+        // Decode metadata in background
+        decodeFileMetadata(fileObj);
+      }
+
+      updateQueueUI();
+    }
+
+    async function decodeFileMetadata(fileObj) {
+      try {
+        const ctx = getAudioContext();
+        const arrayBuffer = await fileObj.file.arrayBuffer();
+        const decodedBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+        fileObj.audioBuffer = decodedBuffer;
+        fileObj.duration = decodedBuffer.duration;
+        fileObj.trimEnd = decodedBuffer.duration;
+        fileObj.sampleRate = decodedBuffer.sampleRate;
+        fileObj.channels = decodedBuffer.numberOfChannels;
+
+        updateQueueItemUI(fileObj);
+      } catch (err) {
+        console.warn('Metadata decoding failed for:', fileObj.name, err);
+        fileObj.duration = 0;
+        updateQueueItemUI(fileObj);
+      }
+    }
+
+    // Render & Update UI List
+    function renderQueueItem(fileObj) {
+      emptyQueueState.classList.add('hidden');
+
+      const card = document.createElement('div');
+      card.id = `file-card-${fileObj.id}`;
+      card.className = "bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2 transition hover:border-slate-700";
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+              <i class="fa-solid fa-file-audio text-base"></i>
+            </div>
+            <div class="min-w-0">
+              <h4 class="font-semibold text-xs text-slate-200 truncate">${fileObj.name}</h4>
+              <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                <span class="uppercase font-mono bg-slate-800 px-1.5 py-0.2 rounded text-[10px] text-indigo-300">${fileObj.originalExt}</span>
+                <span>• ${formatBytes(fileObj.originalSize)}</span>
+                <span class="meta-info font-mono">• 解析中...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="openTrimmer('${fileObj.id}')" title="波形編集/カット" class="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition text-xs">
+              <i class="fa-solid fa-scissors"></i>
+            </button>
+            <button onclick="removeFile('${fileObj.id}')" title="削除" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition text-xs">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress & Status Info -->
+        <div class="space-y-1 mt-1">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="status-badge text-slate-400">待機中</span>
+            <span class="progress-text font-mono text-indigo-400 hidden">0%</span>
+            <span class="result-info font-mono text-emerald-400 hidden"></span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+            <div class="progress-bar bg-gradient-to-r from-indigo-500 to-cyan-400 h-full w-0 transition-all duration-200"></div>
+          </div>
+        </div>
+      `;
+
+      fileQueueList.appendChild(card);
+    }
+
+    function updateQueueItemUI(fileObj) {
+      const card = document.getElementById(`file-card-${fileObj.id}`);
+      if (!card) return;
+
+      const metaInfo = card.querySelector('.meta-info');
+      if (metaInfo && fileObj.duration > 0) {
+        metaInfo.textContent = `• ${formatTime(fileObj.duration)} • ${fileObj.sampleRate}Hz • ${fileObj.channels === 1 ? 'モノラル' : 'ステレオ'}`;
+      } else if (metaInfo) {
+        metaInfo.textContent = `• サイズ: ${formatBytes(fileObj.originalSize)}`;
+      }
+
+      const statusBadge = card.querySelector('.status-badge');
+      const progressBar = card.querySelector('.progress-bar');
+      const progressText = card.querySelector('.progress-text');
+      const resultInfo = card.querySelector('.result-info');
+
+      if (fileObj.status === 'processing') {
+        statusBadge.textContent = '変換処理中...';
+        statusBadge.className = 'status-badge text-indigo-400 animate-pulse font-medium';
+        progressText.classList.remove('hidden');
+        progressText.textContent = `${fileObj.progress}%`;
+        progressBar.style.width = `${fileObj.progress}%`;
+      } else if (fileObj.status === 'completed') {
+        statusBadge.textContent = '完了';
+        statusBadge.className = 'status-badge text-emerald-400 font-bold';
+        progressText.classList.add('hidden');
+        progressBar.style.width = '100%';
+        progressBar.className = 'progress-bar bg-emerald-500 h-full w-full';
+
+        const savedRatio = (((fileObj.originalSize - fileObj.convertedSize) / fileObj.originalSize) * 100).toFixed(1);
+        const ratioDisplay = savedRatio > 0 ? `(-${savedRatio}%)` : `(+${Math.abs(savedRatio)}%)`;
+
+        resultInfo.classList.remove('hidden');
+        resultInfo.innerHTML = `
+          ${formatBytes(fileObj.convertedSize)} <span class="text-[10px] text-slate-400">${ratioDisplay}</span>
+          <a href="${URL.createObjectURL(fileObj.convertedBlob)}" download="${fileObj.convertedName}" class="ml-2 text-indigo-400 hover:underline font-bold">
+            <i class="fa-solid fa-download"></i> ダウンロード
+          </a>
+        `;
+      } else if (fileObj.status === 'error') {
+        statusBadge.textContent = `エラー: ${fileObj.errorMsg || '失敗'}`;
+        statusBadge.className = 'status-badge text-rose-400 font-bold';
+        progressBar.style.width = '100%';
+        progressBar.className = 'progress-bar bg-rose-500 h-full w-full';
+      }
+    }
+
+    function removeFile(id) {
+      state.files = state.files.filter(f => f.id !== id);
+      const card = document.getElementById(`file-card-${id}`);
+      if (card) card.remove();
+
+      if (state.activeTrimIndex !== null && state.files[state.activeTrimIndex]?.id === id) {
+        hideTrimmer();
+      }
+
+      updateQueueUI();
+    }
+
+    function updateQueueUI() {
+      queueCount.textContent = state.files.length;
+      if (state.files.length === 0) {
+        emptyQueueState.classList.remove('hidden');
+        convertAllBtn.disabled = true;
+        downloadZipBtn.disabled = true;
+        summaryBar.classList.add('hidden');
+      } else {
+        emptyQueueState.classList.add('hidden');
+        convertAllBtn.disabled = false;
+
+        const hasConverted = state.files.some(f => f.status === 'completed');
+        downloadZipBtn.disabled = !hasConverted;
+
+        if (hasConverted) {
+          summaryBar.classList.remove('hidden');
+          const origTot = state.files.reduce((a, c) => a + c.originalSize, 0);
+          const convTot = state.files.reduce((a, c) => a + (c.convertedSize || c.originalSize), 0);
+          totalOriginalSizeEl.textContent = formatBytes(origTot);
+          totalConvertedSizeEl.textContent = formatBytes(convTot);
+
+          const diff = (((origTot - convTot) / origTot) * 100).toFixed(1);
+          totalRatioText.textContent = diff >= 0 ? `合計サイズ削減: ${diff}%` : `サイズ増加: ${Math.abs(diff)}%`;
+        }
+      }
+    }
+
+    function resetAll() {
+      stopPreviewPlay();
+      state.files = [];
+      fileQueueList.innerHTML = '';
+      fileQueueList.appendChild(emptyQueueState);
+      emptyQueueState.classList.remove('hidden');
+      hideTrimmer();
+      updateQueueUI();
+      showToast('キューをクリアしました');
+    }
+
+    // Audio Trimmer & Waveform Drawer Logic
+    async function openTrimmer(id) {
+      const fileIdx = state.files.findIndex(f => f.id === id);
+      if (fileIdx === -1) return;
+
+      const fileObj = state.files[fileIdx];
+      state.activeTrimIndex = fileIdx;
+
+      trimmerFileName.textContent = fileObj.name;
+      trimmerCard.classList.remove('hidden');
+
+      if (!fileObj.audioBuffer) {
+        showToast('音声データの読み込み中...', 'info');
+        await decodeFileMetadata(fileObj);
+      }
+
+      if (fileObj.audioBuffer) {
+        trimStartInput.max = fileObj.duration;
+        trimEndInput.max = fileObj.duration;
+        trimStartInput.value = fileObj.trimStart.toFixed(1);
+        trimEndInput.value = fileObj.trimEnd.toFixed(1);
+
+        drawWaveform(fileObj.audioBuffer);
+        updateWaveformOverlay(fileObj);
+      }
+    }
+
+    function hideTrimmer() {
+      stopPreviewPlay();
+      trimmerCard.classList.add('hidden');
+      state.activeTrimIndex = null;
+    }
+
+    function drawWaveform(buffer) {
+      const canvas = waveformCanvas;
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width = canvas.parentElement.clientWidth;
+      const height = canvas.height = canvas.parentElement.clientHeight;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const data = buffer.getChannelData(0);
+      const step = Math.ceil(data.length / width);
+      const amp = height / 2;
+
+      ctx.fillStyle = '#6366f1'; // Indigo color
+      ctx.beginPath();
+
+      for (let i = 0; i < width; i++) {
+        let min = 1.0;
+        let max = -1.0;
+        for (let j = 0; j < step; j++) {
+          const datum = data[(i * step) + j];
+          if (datum < min) min = datum;
+          if (datum > max) max = datum;
+        }
+        ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+      }
+    }
+
+    function updateWaveformOverlay(fileObj) {
+      if (!fileObj || !fileObj.duration) return;
+      const parentWidth = waveformCanvas.parentElement.clientWidth;
+      const startRatio = fileObj.trimStart / fileObj.duration;
+      const endRatio = fileObj.trimEnd / fileObj.duration;
+
+      waveformOverlay.style.left = `${startRatio * 100}%`;
+      waveformOverlay.style.width = `${(endRatio - startRatio) * 100}%`;
+    }
+
+    function updateTrimFromInputs() {
+      if (state.activeTrimIndex === null) return;
+      const fileObj = state.files[state.activeTrimIndex];
+
+      let start = parseFloat(trimStartInput.value) || 0;
+      let end = parseFloat(trimEndInput.value) || fileObj.duration;
+
+      if (start < 0) start = 0;
+      if (end > fileObj.duration) end = fileObj.duration;
+      if (start >= end) start = Math.max(0, end - 0.5);
+
+      fileObj.trimStart = start;
+      fileObj.trimEnd = end;
+
+      trimStartInput.value = start.toFixed(1);
+      trimEndInput.value = end.toFixed(1);
+
+      updateWaveformOverlay(fileObj);
+    }
+
+    // Interactive Preview Playback
+    function togglePreviewPlay() {
+      if (state.isPlayingPreview) {
+        stopPreviewPlay();
+      } else {
+        startPreviewPlay();
+      }
+    }
+
+    function startPreviewPlay() {
+      if (state.activeTrimIndex === null) return;
+      const fileObj = state.files[state.activeTrimIndex];
+      if (!fileObj.audioBuffer) return;
+
+      const ctx = getAudioContext();
+      stopPreviewPlay();
+
+      state.previewSource = ctx.createBufferSource();
+      state.previewSource.buffer = fileObj.audioBuffer;
+
+      // Create Gain Node
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = state.gain;
+
+      state.previewSource.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      const duration = fileObj.trimEnd - fileObj.trimStart;
+      state.previewSource.start(0, fileObj.trimStart, duration);
+      state.isPlayingPreview = true;
+      state.previewStartTime = ctx.currentTime;
+
+      playTrimBtn.innerHTML = '<i class="fa-solid fa-pause"></i> <span>一時停止</span>';
+
+      state.previewSource.onended = () => {
+        stopPreviewPlay();
+      };
+    }
+
+    function stopPreviewPlay() {
+      if (state.previewSource) {
+        try { state.previewSource.stop(); } catch(e) {}
+        state.previewSource = null;
+      }
+      state.isPlayingPreview = false;
+      playTrimBtn.innerHTML = '<i class="fa-solid fa-play"></i> <span>試聴</span>';
+      previewTimeText.textContent = '00:00 / 00:00';
+    }
+
+    // Audio Conversion Processing Pipeline
+    async function processBatchConversion() {
+      if (state.files.length === 0) return;
+
+      convertAllBtn.disabled = true;
+      showToast('一括変換を開始します...', 'info');
+
+      for (let i = 0; i < state.files.length; i++) {
+        const fileObj = state.files[i];
+        if (fileObj.status === 'completed') continue;
+
+        fileObj.status = 'processing';
+        fileObj.progress = 5;
+        updateQueueItemUI(fileObj);
+
+        try {
+          // 1. Decode Audio if not cached
+          if (!fileObj.audioBuffer) {
+            const ctx = getAudioContext();
+            const arr = await fileObj.file.arrayBuffer();
+            fileObj.audioBuffer = await ctx.decodeAudioData(arr);
+          }
+
+          fileObj.progress = 20;
+          updateQueueItemUI(fileObj);
+
+          // 2. Render Trimmed/Resampled/Gain adjusted AudioBuffer via OfflineAudioContext
+          const processedBuffer = await renderProcessedAudioBuffer(fileObj);
+
+          fileObj.progress = 50;
+          updateQueueItemUI(fileObj);
+
+          // 3. Encode to target format
+          const { blob, extension } = await encodeAudioBuffer(processedBuffer, state.selectedFormat, (p) => {
+            fileObj.progress = 50 + Math.floor(p * 0.45);
+            updateQueueItemUI(fileObj);
+          });
+
+          // 4. Save results
+          fileObj.convertedBlob = blob;
+          fileObj.convertedSize = blob.size;
+          const baseName = fileObj.name.substring(0, fileObj.name.lastIndexOf('.')) || fileObj.name;
+          fileObj.convertedName = `${baseName}_converted.${extension}`;
+          fileObj.status = 'completed';
+          fileObj.progress = 100;
+
+          updateQueueItemUI(fileObj);
+        } catch (err) {
+          console.error('Conversion error:', err);
+          fileObj.status = 'error';
+          fileObj.errorMsg = err.message || '変換に失敗しました';
+          updateQueueItemUI(fileObj);
+        }
+      }
+
+      convertAllBtn.disabled = false;
+      updateQueueUI();
+      showToast('すべての変換が完了しました！', 'success');
+    }
+
+    // Render AudioBuffer using OfflineAudioContext (Trimming, Resampling, Gain)
+    async function renderProcessedAudioBuffer(fileObj) {
+      const origBuffer = fileObj.audioBuffer;
+      const trimStart = fileObj.trimStart || 0;
+      const trimEnd = fileObj.trimEnd || origBuffer.duration;
+      const duration = Math.max(0.1, trimEnd - trimStart);
+
+      const targetSampleRate = state.sampleRate > 0 ? state.sampleRate : origBuffer.sampleRate;
+      const targetChannels = state.channels > 0 ? state.channels : origBuffer.numberOfChannels;
+      const frameCount = Math.floor(duration * targetSampleRate);
+
+      const offlineCtx = new OfflineAudioContext(targetChannels, frameCount, targetSampleRate);
+
+      const source = offlineCtx.createBufferSource();
+      source.buffer = origBuffer;
+
+      const gainNode = offlineCtx.createGain();
+      gainNode.gain.value = state.gain;
+
+      source.connect(gainNode);
+      gainNode.connect(offlineCtx.destination);
+
+      source.start(0, trimStart, duration);
+
+      return await offlineCtx.startRendering();
+    }
+
+    // Format Encoders
+    async function encodeAudioBuffer(audioBuffer, format, onProgress) {
+      switch (format) {
+        case 'wav':
+          return { blob: bufferToWav(audioBuffer), extension: 'wav' };
+
+        case 'mp3':
+          return { blob: bufferToMp3(audioBuffer, state.bitrate, onProgress), extension: 'mp3' };
+
+        case 'ogg':
+          return await bufferToMediaStream(audioBuffer, 'audio/ogg', 'ogg', onProgress);
+
+        case 'webm':
+          return await bufferToMediaStream(audioBuffer, 'audio/webm', 'webm', onProgress);
+
+        case 'm4a':
+          return await bufferToMediaStream(audioBuffer, 'audio/mp4', 'm4a', onProgress);
+
+        case 'flac':
+          // Fallback to WAV format with .flac extension if native FLAC encoding unavailable
+          return { blob: bufferToWav(audioBuffer), extension: 'flac' };
+
+        default:
+          return { blob: bufferToWav(audioBuffer), extension: 'wav' };
+      }
+    }
+
+    // Pure JS PCM 16-bit WAV Encoder
+    function bufferToWav(audioBuffer) {
+      const numOfChan = audioBuffer.numberOfChannels;
+      const length = audioBuffer.length * numOfChan * 2 + 44;
+      const buffer = new ArrayBuffer(length);
+      const view = new DataView(buffer);
+      const channels = [];
+      let sampleRate = audioBuffer.sampleRate;
+      let offset = 0;
+      let pos = 0;
+
+      function writeString(str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(pos++, str.charCodeAt(i));
+        }
+      }
+
+      function setUint16(data) {
+        view.setUint16(pos, data, true);
+        pos += 2;
+      }
+
+      function setUint32(data) {
+        view.setUint32(pos, data, true);
+        pos += 4;
+      }
+
+      // RIFF header
+      writeString('RIFF');
+      setUint32(length - 8);
+      writeString('WAVE');
+
+      // FMT sub-chunk
+      writeString('fmt ');
+      setUint32(16);
+      setUint16(1); // PCM
+      setUint16(numOfChan);
+      setUint32(sampleRate);
+      setUint32(sampleRate * numOfChan * 2);
+      setUint16(numOfChan * 2);
+      setUint16(16);
+
+      // Data sub-chunk
+      writeString('data');
+      setUint32(length - pos - 4);
+
+      for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+        channels.push(audioBuffer.getChannelData(i));
+      }
+
+      while (offset < audioBuffer.length) {
+        for (let i = 0; i < numOfChan; i++) {
+          let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+          view.setInt16(pos, sample, true);
+          pos += 2;
+        }
+        offset++;
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // Pure JS MP3 Encoder via lamejs
+    function bufferToMp3(audioBuffer, kbps = 192, onProgress) {
+      const channels = audioBuffer.numberOfChannels;
+      const sampleRate = audioBuffer.sampleRate;
+      const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+      const mp3Data = [];
+
+      const sampleBlockSize = 1152;
+      const left = audioBuffer.getChannelData(0);
+      const right = channels > 1 ? audioBuffer.getChannelData(1) : left;
+
+      const samplesCount = audioBuffer.length;
+      
+      const leftInt16 = new Int16Array(samplesCount);
+      const rightInt16 = channels > 1 ? new Int16Array(samplesCount) : leftInt16;
+
+      for (let i = 0; i < samplesCount; i++) {
+        let sL = Math.max(-1, Math.min(1, left[i]));
+        leftInt16[i] = sL < 0 ? sL * 0x8000 : sL * 0x7FFF;
+        if (channels > 1) {
+          let sR = Math.max(-1, Math.min(1, right[i]));
+          rightInt16[i] = sR < 0 ? sR * 0x8000 : sR * 0x7FFF;
+        }
+      }
+
+      for (let i = 0; i < samplesCount; i += sampleBlockSize) {
+        const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+        let mp3buf;
+        if (channels === 1) {
+          mp3buf = mp3encoder.encodeBuffer(leftChunk);
+        } else {
+          const rightChunk = rightInt16.subarray(i, i + sampleBlockSize);
+          mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+        }
+        if (mp3buf.length > 0) {
+          mp3Data.push(mp3buf);
+        }
+        if (onProgress && i % (sampleBlockSize * 20) === 0) {
+          onProgress(Math.min(100, Math.round((i / samplesCount) * 100)));
+        }
+      }
+
+      const mp3buf = mp3encoder.flush();
+      if (mp3buf.length > 0) {
+        mp3Data.push(mp3buf);
+      }
+
+      return new Blob(mp3Data, { type: 'audio/mp3' });
+    }
+
+    // MediaRecorder Encoder for WEBM / OGG / AAC
+    async function bufferToMediaStream(audioBuffer, mimeType, ext, onProgress) {
+      // Check browser support
+      let effectiveMime = mimeType;
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          effectiveMime = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          effectiveMime = 'audio/webm';
+        } else {
+          // Fallback to WAV
+          return { blob: bufferToWav(audioBuffer), extension: ext };
+        }
+      }
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: audioBuffer.sampleRate });
+      const streamDest = audioCtx.createMediaStreamDestination();
+      const sourceNode = audioCtx.createBufferSource();
+      sourceNode.buffer = audioBuffer;
+      sourceNode.connect(streamDest);
+
+      const mediaRecorder = new MediaRecorder(streamDest.stream, { mimeType: effectiveMime });
+      const chunks = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      return new Promise((resolve, reject) => {
+        mediaRecorder.onstop = () => {
+          audioCtx.close();
+          const blob = new Blob(chunks, { type: effectiveMime });
+          resolve({ blob, extension: ext });
+        };
+
+        mediaRecorder.onerror = (e) => {
+          audioCtx.close();
+          reject(e);
+        };
+
+        mediaRecorder.start(100);
+        sourceNode.start(0);
+
+        const startTime = Date.now();
+        const totalDuration = audioBuffer.duration * 1000;
+
+        const interval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          if (onProgress) {
+            onProgress(Math.min(99, Math.round((elapsed / totalDuration) * 100)));
+          }
+        }, 100);
+
+        sourceNode.onended = () => {
+          clearInterval(interval);
+          setTimeout(() => {
+            if (mediaRecorder.state !== 'inactive') {
+              mediaRecorder.stop();
+            }
+          }, 100);
+        };
+      });
+    }
+
+    // Download All Converted Files in JSZip
+    async function downloadAllAsZip() {
+      const completedFiles = state.files.filter(f => f.status === 'completed' && f.convertedBlob);
+      if (completedFiles.length === 0) return;
+
+      showToast('ZIPアーカイブを作成中...', 'info');
+
+      const zip = new JSZip();
+      completedFiles.forEach(f => {
+        zip.file(f.convertedName, f.convertedBlob);
+      });
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `converted_audio_${Date.now()}.zip`;
+      link.click();
+
+      showToast('ZIPを保存しました！', 'success');
+    }
+
+    // Bootstrap App
+    window.addEventListener('DOMContentLoaded', () => {
+      initEvents();
+    });
+  </script>
+</body>
+</html>
